@@ -1,5 +1,5 @@
-﻿import json
-from dataclasses import dataclass, asdict
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from threading import Lock
 
@@ -13,13 +13,11 @@ class VtbConfig:
     url: str
     archive_file_path: Path
     save_dir_path: Path
-    log_file_path: Path
 
     def to_dict(self) -> dict[str, object]:
         config_dict = asdict(self)
         config_dict["archive_file_path"] = str(self.archive_file_path)
         config_dict["save_dir_path"] = str(self.save_dir_path)
-        config_dict["log_file_path"] = str(self.log_file_path)
         return config_dict
 
 
@@ -71,14 +69,12 @@ class VtbConfigManager:
         url = self._get_required_field(raw_vtb_config, "url")
         archive_file_path = Path(self._get_required_field(raw_vtb_config, "archive_file_path"))
         save_dir_path = Path(self._get_required_field(raw_vtb_config, "save_dir_path"))
-        log_file_path = Path(self._get_required_field(raw_vtb_config, "log_file_path"))
 
         return VtbConfig(
             name=name,
             url=url,
             archive_file_path=archive_file_path,
             save_dir_path=save_dir_path,
-            log_file_path=log_file_path,
         )
 
     def _get_required_field(self, raw_vtb_config: dict[str, object], field_name: str) -> str:

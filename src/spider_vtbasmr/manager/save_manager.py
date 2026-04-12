@@ -1,6 +1,7 @@
-﻿import json
+import json
 import re
 from pathlib import Path
+from time import time
 
 from spider_vtbasmr.scraper.detail_page_scraper import DetailPageResult
 from spider_vtbasmr.scraper.tag_page_scraper import CoverItem
@@ -23,6 +24,7 @@ class SaveManager:
 
         output_data = {
             "post_id": cover_item.post_id,
+            "save_timestamp": int(time()),
             "cover_item": cover_item.to_dict(),
             "detail_page_result": detail_page_result.to_dict(),
         }

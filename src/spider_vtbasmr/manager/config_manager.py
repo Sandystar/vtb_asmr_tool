@@ -1,4 +1,4 @@
-﻿import json
+import json
 from pathlib import Path
 from threading import Lock
 
@@ -43,6 +43,12 @@ class ConfigManager:
 
     def get_login_state_file_path(self) -> Path:
         return Path(self._get_required_login_value("state_file_path"))
+
+    def get_log_dir_path(self) -> Path:
+        log_dir = self._config_data.get("log_dir")
+        if not log_dir:
+            raise ValueError(f"Missing log_dir in config file: {self._config_path}")
+        return Path(str(log_dir))
 
     def get_download_link_info(self) -> dict[str, str]:
         download_link_info = self._config_data.get("download_link_info", {})
