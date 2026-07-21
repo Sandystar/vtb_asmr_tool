@@ -79,9 +79,17 @@ class VtbCrawler:
     ) -> None:
         self._vtb_config_manager = vtb_config_manager or VtbConfigManager()
         self._config_manager = config_manager or ConfigManager()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
-        self._tag_page_scraper = tag_page_scraper or TagPageScraper(browser_client=self._browser_client)
-        self._detail_page_scraper = detail_page_scraper or DetailPageScraper(browser_client=self._browser_client)
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
+        self._tag_page_scraper = tag_page_scraper or TagPageScraper(
+            browser_client=self._browser_client,
+            config_manager=self._config_manager,
+        )
+        self._detail_page_scraper = detail_page_scraper or DetailPageScraper(
+            browser_client=self._browser_client,
+            config_manager=self._config_manager,
+        )
 
     def crawl_single_vtb(
         self,

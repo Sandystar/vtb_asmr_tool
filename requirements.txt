@@ -1,1 +1,2 @@
-﻿playwright>=1.53.0
+playwright>=1.53.0
+PySide6>=6.8.0

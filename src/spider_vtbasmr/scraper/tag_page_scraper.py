@@ -1,4 +1,4 @@
-﻿from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass
 
 from spider_vtbasmr.browser.playwright_browser_client import BrowserSession, PlaywrightBrowserClient
 from spider_vtbasmr.manager.config_manager import ConfigManager
@@ -52,7 +52,9 @@ class TagPageScraper:
         config_manager: ConfigManager | None = None,
     ) -> None:
         self._config_manager = config_manager or ConfigManager()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
         self._login_state_path = self._config_manager.get_login_state_file_path()
 
     def scrape_tag_page(

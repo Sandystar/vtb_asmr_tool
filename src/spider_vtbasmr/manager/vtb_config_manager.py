@@ -1,7 +1,6 @@
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from threading import Lock
 
 
 DEFAULT_VTB_CONFIG_PATH = Path(".config/vtb.json")
@@ -22,24 +21,19 @@ class VtbConfig:
 
 
 class VtbConfigManager:
-    _instance: "VtbConfigManager | None" = None
-    _lock: Lock = Lock()
-
-    def __new__(cls, config_path: Path | None = None) -> "VtbConfigManager":
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._is_initialized = False
-        return cls._instance
-
-    def __init__(self, config_path: Path | None = None) -> None:
-        if self._is_initialized:
-            return
-
-        self._config_path = config_path or DEFAULT_VTB_CONFIG_PATH
+    def __init__(
+        self,
+        config_path: Path | None = None,
+        *,
+        project_root: Path | None = None,
+    ) -> None:
+        self._project_root = (project_root or Path.cwd()).expanduser().resolve(strict=False)
+        self._config_path = self._resolve_path(config_path or DEFAULT_VTB_CONFIG_PATH)
         self._config_data = self._load_config_data()
-        self._is_initialized = True
+
+    @property
+    def config_path(self) -> Path:
+        return self._config_path
 
     def get_vtb_config(self, tag_name: str) -> VtbConfig:
         raw_vtb_config = self._config_data.get(tag_name)
@@ -57,18 +51,27 @@ class VtbConfigManager:
     def get_all_vtb_names(self) -> list[str]:
         return [vtb_config.name for vtb_config in self.get_all_vtb_configs()]
 
+    def _resolve_path(self, path_value: Path) -> Path:
+        expanded_path = path_value.expanduser()
+        if expanded_path.is_absolute():
+            return expanded_path.resolve(strict=False)
+        return (self._project_root / expanded_path).resolve(strict=False)
+
     def _load_config_data(self) -> dict[str, object]:
         if not self._config_path.exists():
             raise FileNotFoundError(f"VTB config file not found: {self._config_path}")
 
-        with self._config_path.open("r", encoding="utf-8") as config_file:
-            return json.load(config_file)
+        with self._config_path.open("r", encoding="utf-8-sig") as config_file:
+            config_data = json.load(config_file)
+        if not isinstance(config_data, dict):
+            raise ValueError(f"VTB config file must contain a JSON object: {self._config_path}")
+        return config_data
 
     def _build_vtb_config(self, raw_vtb_config: dict[str, object]) -> VtbConfig:
         name = self._get_required_field(raw_vtb_config, "name")
         url = self._get_required_field(raw_vtb_config, "url")
-        archive_file_path = Path(self._get_required_field(raw_vtb_config, "archive_file_path"))
-        save_dir_path = Path(self._get_required_field(raw_vtb_config, "save_dir_path"))
+        archive_file_path = self._resolve_path(Path(self._get_required_field(raw_vtb_config, "archive_file_path")))
+        save_dir_path = self._resolve_path(Path(self._get_required_field(raw_vtb_config, "save_dir_path")))
 
         return VtbConfig(
             name=name,

@@ -1,4 +1,4 @@
-﻿from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass
 import re
 
 from spider_vtbasmr.browser.playwright_browser_client import BrowserSession, PlaywrightBrowserClient
@@ -54,7 +54,9 @@ class DetailPageScraper:
         config_manager: ConfigManager | None = None,
     ) -> None:
         self._config_manager = config_manager or ConfigManager()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
         self._login_state_path = self._config_manager.get_login_state_file_path()
         self._download_link_info = self._config_manager.get_download_link_info()
 

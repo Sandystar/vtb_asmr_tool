@@ -1,7 +1,8 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
-from spider_vtbasmr.browser.playwright_browser_client import PlaywrightBrowserClient
+from spider_vtbasmr.browser.playwright_browser_client import BrowserSession, PlaywrightBrowserClient
+from spider_vtbasmr.browser.profile_snapshot import create_browser_profile_snapshot
 from spider_vtbasmr.manager.config_manager import ConfigManager
 from spider_vtbasmr.manager.login_action import LoginAction
 
@@ -25,8 +26,12 @@ class LoginStateManager:
         self._config_manager = config_manager or ConfigManager()
         self._login_url = login_url or self._config_manager.get_login_url()
         self._state_path = state_path or self._config_manager.get_login_state_file_path()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
-        self._login_action = login_action or LoginAction()
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
+        self._login_action = login_action or LoginAction(
+            config_manager=self._config_manager,
+        )
 
     def create_login_state(
         self,
@@ -38,9 +43,26 @@ class LoginStateManager:
     ) -> LoginResult:
         login_username = username or self._config_manager.get_login_username()
         login_password = password or self._config_manager.get_login_password()
-        browser_session = self._browser_client.open_browser_session(is_headless=is_headless)
+        use_existing_profile = self._config_manager.use_existing_browser_profile()
+        profile_directory = self._config_manager.get_browser_profile_directory()
+        source_user_data_dir = (
+            self._config_manager.get_browser_user_data_dir()
+            if use_existing_profile
+            else None
+        )
+        profile_snapshot = (
+            create_browser_profile_snapshot(source_user_data_dir, profile_directory)
+            if source_user_data_dir is not None
+            else None
+        )
+        browser_session: BrowserSession | None = None
 
         try:
+            browser_session = self._browser_client.open_browser_session(
+                is_headless=is_headless,
+                user_data_dir=(profile_snapshot.user_data_dir if profile_snapshot else None),
+                profile_directory=profile_directory,
+            )
             self._login_action.perform_login(
                 page=browser_session.page,
                 login_url=self._login_url,
@@ -54,7 +76,10 @@ class LoginStateManager:
             )
             final_url = browser_session.page.url
         finally:
-            self._browser_client.close_browser_session(browser_session)
+            if browser_session is not None:
+                self._browser_client.close_browser_session(browser_session)
+            if profile_snapshot is not None:
+                profile_snapshot.cleanup()
 
         return LoginResult(
             login_url=self._login_url,
