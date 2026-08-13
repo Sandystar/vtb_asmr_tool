@@ -142,7 +142,15 @@ def test_batch_stops_after_authentication_failure(tmp_path: Path) -> None:
         config_manager=FakeBatchConfigManager(),
     )
 
+    progress_events: list[tuple[str, int, int]] = []
     with pytest.raises(AuthenticationRequiredError, match="login expired"):
-        crawler.crawl_vtb_list(tag_names=["first", "second"], log_file_name="batch")
+        crawler.crawl_vtb_list(
+            tag_names=["first", "second"],
+            log_file_name="batch",
+            on_progress=lambda name, current, total: progress_events.append(
+                (name, current, total)
+            ),
+        )
 
     assert tag_scraper.call_count == 1
+    assert progress_events == [("first", 1, 2)]

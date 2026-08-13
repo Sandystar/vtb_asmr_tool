@@ -69,16 +69,28 @@ class SpiderTaskService:
         crawl_mode: CrawlMode,
         page_order: PageOrder,
         log_file_name: str | None = None,
+        on_progress: Callable[[str, int, int], None] | None = None,
     ) -> CrawlTaskResult:
         if not tag_names:
             raise ValueError("请至少选择一个 Tag")
         context = self._context_provider.require()
+
+        def report_progress(tag_name: str, current_count: int, total_count: int) -> None:
+            if on_progress is None:
+                return
+            try:
+                current_name = context.vtb_config.get_vtb_config(tag_name).name
+            except (KeyError, ValueError):
+                current_name = tag_name
+            on_progress(current_name, current_count, total_count)
+
         result = self._crawler_factory(context).crawl_vtb_list(
             tag_names=tag_names,
             crawl_mode=CrawlMode(crawl_mode),
             page_order=PageOrder(page_order),
             log_file_name=log_file_name.strip() if log_file_name and log_file_name.strip() else None,
             is_headless=True,
+            on_progress=report_progress,
         )
         return self._result(result)
 

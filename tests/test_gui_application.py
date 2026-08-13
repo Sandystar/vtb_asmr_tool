@@ -8,12 +8,14 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from spider_vtbasmr_gui import app as app_module
 from spider_vtbasmr_gui.app import create_application_runtime
 from spider_vtbasmr_gui.controllers.resource_transfer_controller import ResourceTransferController
 from spider_vtbasmr_gui.project_paths import ProjectPaths
 from spider_vtbasmr_gui.ui.task_runner import TaskRunner
+from spider_vtbasmr_gui.ui.widgets import SectionCard
 
 
 def write_json(path: Path, payload: object) -> None:
@@ -61,6 +63,53 @@ def test_application_constructs_all_pages_without_starting_side_effects(tmp_path
             runtime.window.switch_page(index)
             assert runtime.window.current_page_index == index
         assert runtime.window.crawl_page.selected_tag_names() == []
+    finally:
+        runtime.window.close()
+        os.chdir(original_cwd)
+
+
+def test_crawl_page_uses_vertical_sections_and_updates_progress(tmp_path: Path) -> None:
+    original_cwd = Path.cwd()
+    runtime = create_application_runtime([], project_paths=build_test_project(tmp_path))
+    try:
+        page = runtime.window.crawl_page
+        page_layout = page.layout()
+        assert isinstance(page_layout, QVBoxLayout)
+
+        cards = [
+            page_layout.itemAt(index).widget()
+            for index in range(page_layout.count())
+            if isinstance(page_layout.itemAt(index).widget(), SectionCard)
+        ]
+        assert [
+            card.findChild(QLabel, "sectionTitle").text()
+            for card in cards
+        ] == ["抓取进度", "更新状态", "任务设置"]
+
+        login_button = next(
+            button
+            for button in page.findChildren(QPushButton)
+            if button.text() == "登录并保存状态"
+        )
+        assert login_button.text() == "登录并保存状态"
+
+        task_card = cards[2]
+        task_columns = task_card.findChild(QWidget, "contentPanel")
+        assert task_columns is not None
+        assert isinstance(task_columns.layout(), QHBoxLayout)
+        assert task_columns.findChild(QWidget, "taskParameters") is not None
+        assert task_columns.findChild(QWidget, "vtbSelection") is not None
+
+        page.show_crawl_progress("测试 VTB", 2, 7)
+        progress_bar = page.findChild(QProgressBar, "crawlProgressBar")
+        progress_values = {
+            label.text()
+            for label in page.findChildren(QLabel, "progressMetricValue")
+        }
+        assert progress_values == {"测试 VTB", "2", "7"}
+        assert progress_bar.maximum() == 7
+        assert progress_bar.value() == 2
+        assert progress_bar.format() == "2 / 7"
     finally:
         runtime.window.close()
         os.chdir(original_cwd)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Signal
 
 from spider_vtbasmr_gui.controllers.task_coordinator import TaskCoordinator
 from spider_vtbasmr_gui.services.spider_task_service import (
@@ -12,6 +12,8 @@ from spider_vtbasmr_gui.ui.pages.crawl_page import CrawlPage, CrawlRequest
 
 
 class CrawlController(QObject):
+    crawl_progress_changed = Signal(str, int, int)
+
     def __init__(
         self,
         page: CrawlPage,
@@ -23,6 +25,7 @@ class CrawlController(QObject):
         self._page = page
         self._service = service
         self._tasks = tasks
+        self.crawl_progress_changed.connect(page.show_crawl_progress)
         page.login_requested.connect(self.login)
         page.crawl_requested.connect(self.crawl)
 
@@ -49,6 +52,7 @@ class CrawlController(QObject):
         if not request.tag_names:
             self._page.show_crawl_status("请至少选择一个 VTB。", "error")
             return
+        self._page.show_crawl_progress("等待开始", 0, len(request.tag_names))
         self._page.show_crawl_status("抓取任务正在后台运行…", "warning")
         self._tasks.run(
             lambda: self._service.run_crawl(
@@ -56,6 +60,7 @@ class CrawlController(QObject):
                 request.crawl_mode,
                 request.page_order,
                 request.log_file_name,
+                on_progress=self.crawl_progress_changed.emit,
             ),
             busy_message="正在抓取数据…",
             on_success=self._crawl_succeeded,

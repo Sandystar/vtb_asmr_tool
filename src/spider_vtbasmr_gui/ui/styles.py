@@ -16,7 +16,8 @@ def build_application_stylesheet() -> str:
     }
     QWidget#sidebarBrand, QWidget#mainHeader, QWidget#pageSurface,
     QWidget#transparentPanel, QWidget#contentPanel, QWidget#fieldRow,
-    QWidget#toolbar, QWidget#workspace {
+    QWidget#toolbar, QWidget#workspace, QWidget#progressMetrics,
+    QWidget#progressMetric, QWidget#taskParameters, QWidget#vtbSelection {
         background: transparent;
         border: none;
     }
@@ -151,6 +152,8 @@ def build_application_stylesheet() -> str:
     QLabel#fieldLabel, QLabel#itemTitle { color: #dcdad3; font-weight: 650; }
     QLabel#linkText { color: #e6a15c; font-size: 12px; }
     QLabel#countLabel { color: #a5aaa9; font-weight: 650; }
+    QLabel#progressMetricTitle { color: #8f9596; font-size: 12px; }
+    QLabel#progressMetricValue { color: #f1f0ea; font-size: 16px; font-weight: 750; }
     QLabel#statusLabel { color: #8f9596; font-size: 12px; }
     QLabel#statusLabel[statusTone="success"] { color: #9dd5a7; }
     QLabel#statusLabel[statusTone="warning"] { color: #e2c077; }
@@ -170,6 +173,20 @@ def build_application_stylesheet() -> str:
     QListWidget::item { padding: 7px; border-radius: 5px; }
     QListWidget::item:hover { background: #252b2d; }
     QListWidget::item:selected { background: #3d3023; color: #f0b678; }
+    QProgressBar#crawlProgressBar {
+        min-height: 20px;
+        background: #151819;
+        color: #f1f0ea;
+        border: 1px solid #3a4144;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    QProgressBar#crawlProgressBar::chunk {
+        background: #e6a15c;
+        border-radius: 5px;
+    }
     QScrollArea {
         background: #151819;
         border: 1px solid #30363a;
