@@ -1,75 +1,72 @@
-import json
+from __future__ import annotations
+
 from pathlib import Path
-from threading import Lock
+
+from spider_vtbasmr.manager.base_config import BaseConfigStore, SpiderBaseConfig
 
 
-DEFAULT_CONFIG_PATH = Path(".config/config.json")
+DEFAULT_CONFIG_PATH = Path("config/vtbasmr_base.json")
 
 
 class ConfigManager:
-    _instance: "ConfigManager | None" = None
-    _lock: Lock = Lock()
+    def __init__(
+        self,
+        config_path: Path | None = None,
+        *,
+        project_root: Path | None = None,
+    ) -> None:
+        self._project_root = (project_root or Path.cwd()).expanduser().resolve(strict=False)
+        self._config_path = self._resolve_path(config_path or DEFAULT_CONFIG_PATH)
+        self._base_config_store = BaseConfigStore(
+            self._config_path,
+            project_root=self._project_root,
+        )
+        self._base_config = self._base_config_store.load()
 
-    def __new__(cls, config_path: Path | None = None) -> "ConfigManager":
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._is_initialized = False
-        return cls._instance
-
-    def __init__(self, config_path: Path | None = None) -> None:
-        if self._is_initialized:
-            return
-
-        self._config_path = config_path or DEFAULT_CONFIG_PATH
-        self._config_data = self._load_config_data()
-        self._is_initialized = True
-
-    def get_browser_channel(self) -> str | None:
-        return self._config_data.get("browser", {}).get("channel")
+    @property
+    def config_path(self) -> Path:
+        return self._config_path
 
     def get_login_url(self) -> str:
-        return self._get_required_login_value("url")
+        return self._require_login_value(self._base_config.login_url, "url")
 
     def get_login_username(self) -> str:
-        return self._get_required_login_value("username")
+        return self._require_login_value(self._base_config.username, "username")
 
     def get_login_password(self) -> str:
-        return self._get_required_login_value("password")
+        return self._require_login_value(self._base_config.password, "password")
 
-    def get_login_success_prefix(self) -> str:
-        return self._get_required_login_value("success_prefix")
+    def get_site_origin(self) -> str:
+        return self._base_config.site_origin
 
-    def get_login_state_file_path(self) -> Path:
-        return Path(self._get_required_login_value("state_file_path"))
+    def get_storage_state(self) -> dict[str, object] | None:
+        if self._base_config.storage_state is None:
+            return None
+        return dict(self._base_config.storage_state)
+
+    def save_storage_state(self, storage_state: dict[str, object]) -> None:
+        self._base_config_store.save_storage_state(storage_state)
+        self._reload()
 
     def get_log_dir_path(self) -> Path:
-        log_dir = self._config_data.get("log_dir")
-        if not log_dir:
+        if not self._base_config.log_dir:
             raise ValueError(f"Missing log_dir in config file: {self._config_path}")
-        return Path(str(log_dir))
+        return self._resolve_path(Path(self._base_config.log_dir))
 
-    def get_download_link_info(self) -> dict[str, str]:
-        download_link_info = self._config_data.get("download_link_info", {})
-        if not isinstance(download_link_info, dict):
-            raise ValueError(f"download_link_info must be an object in config file: {self._config_path}")
-        return {
-            str(link_type): str(link_prefix)
-            for link_type, link_prefix in download_link_info.items()
-            if link_prefix
-        }
+    def get_resource_link_markers(self) -> tuple[str, ...]:
+        return self._base_config.resource_link_markers
 
-    def _load_config_data(self) -> dict[str, object]:
-        if not self._config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {self._config_path}")
+    def _resolve_path(self, path_value: Path) -> Path:
+        expanded_path = path_value.expanduser()
+        if expanded_path.is_absolute():
+            return expanded_path.resolve(strict=False)
+        return (self._project_root / expanded_path).resolve(strict=False)
 
-        with self._config_path.open("r", encoding="utf-8") as config_file:
-            return json.load(config_file)
+    def _reload(self) -> None:
+        self._base_config = self._base_config_store.load()
 
-    def _get_required_login_value(self, field_name: str) -> str:
-        login_info = self._config_data.get("login_info", {})
-        field_value = login_info.get(field_name)
-        if not field_value:
-            raise ValueError(f"Missing login_info.{field_name} in config file: {self._config_path}")
-        return str(field_value)
+    @staticmethod
+    def _require_login_value(value: str, field_name: str) -> str:
+        if not value:
+            raise ValueError(f"Missing login_info.{field_name}")
+        return value

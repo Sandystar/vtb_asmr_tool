@@ -1,8 +1,9 @@
-﻿from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass
 import re
 
 from spider_vtbasmr.browser.playwright_browser_client import BrowserSession, PlaywrightBrowserClient
 from spider_vtbasmr.manager.config_manager import ConfigManager
+from spider_vtbasmr.scraper.page_access import ensure_authenticated_page, ensure_page_structure
 
 
 @dataclass(slots=True)
@@ -54,9 +55,12 @@ class DetailPageScraper:
         config_manager: ConfigManager | None = None,
     ) -> None:
         self._config_manager = config_manager or ConfigManager()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
-        self._login_state_path = self._config_manager.get_login_state_file_path()
-        self._download_link_info = self._config_manager.get_download_link_info()
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
+        self._login_state = self._config_manager.get_storage_state()
+        self._site_origin = self._config_manager.get_site_origin()
+        self._download_link_markers = self._config_manager.get_resource_link_markers()
 
     def scrape_detail_page(
         self,
@@ -68,7 +72,7 @@ class DetailPageScraper:
     ) -> DetailPageResult:
         if browser_session is None:
             managed_browser_session = self._browser_client.open_logged_in_browser_session(
-                storage_state_path=self._login_state_path,
+                storage_state=self._login_state or {},
                 is_headless=is_headless,
             )
         else:
@@ -77,6 +81,12 @@ class DetailPageScraper:
         try:
             page = managed_browser_session.page
             page.goto(page_url, wait_until="networkidle", timeout=timeout_milliseconds)
+            ensure_authenticated_page(page, expected_site_origin=self._site_origin)
+            ensure_page_structure(
+                page,
+                required_selector=".article-title",
+                page_name="详情",
+            )
             self._dismiss_site_tips_popup(page)
 
             title = self._get_text(page, ".article-title")
@@ -234,9 +244,8 @@ class DetailPageScraper:
         return download_links
 
     def _match_download_link_type(self, link_url: str) -> str:
-        for link_type, link_prefix in self._download_link_info.items():
-            if link_url.startswith(link_prefix):
-                return link_type
+        if any(marker in link_url for marker in self._download_link_markers):
+            return "resource"
         return ""
 
     def _extract_labeled_value(self, text: str, label_prefix: str) -> str:

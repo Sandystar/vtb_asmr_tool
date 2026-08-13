@@ -1,7 +1,8 @@
-﻿from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass
 
 from spider_vtbasmr.browser.playwright_browser_client import BrowserSession, PlaywrightBrowserClient
 from spider_vtbasmr.manager.config_manager import ConfigManager
+from spider_vtbasmr.scraper.page_access import ensure_authenticated_page, ensure_page_structure
 
 
 @dataclass(slots=True)
@@ -52,8 +53,11 @@ class TagPageScraper:
         config_manager: ConfigManager | None = None,
     ) -> None:
         self._config_manager = config_manager or ConfigManager()
-        self._browser_client = browser_client or PlaywrightBrowserClient()
-        self._login_state_path = self._config_manager.get_login_state_file_path()
+        self._browser_client = browser_client or PlaywrightBrowserClient(
+            config_manager=self._config_manager,
+        )
+        self._login_state = self._config_manager.get_storage_state()
+        self._site_origin = self._config_manager.get_site_origin()
 
     def scrape_tag_page(
         self,
@@ -65,7 +69,7 @@ class TagPageScraper:
     ) -> TagPageResult:
         if browser_session is None:
             managed_browser_session = self._browser_client.open_logged_in_browser_session(
-                storage_state_path=self._login_state_path,
+                storage_state=self._login_state or {},
                 is_headless=is_headless,
             )
         else:
@@ -74,6 +78,12 @@ class TagPageScraper:
         try:
             page = managed_browser_session.page
             page.goto(page_url, wait_until="networkidle", timeout=timeout_milliseconds)
+            ensure_authenticated_page(page, expected_site_origin=self._site_origin)
+            ensure_page_structure(
+                page,
+                required_selector=".archive-title",
+                page_name="Tag归档",
+            )
 
             tag_name = page.locator(".archive-title").inner_text().strip()
             cover_items = self._extract_cover_items(page)

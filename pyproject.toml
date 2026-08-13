@@ -1,16 +1,29 @@
-﻿[build-system]
+[build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spider_vtbasmr"
-version = "0.1.0"
-description = "Python project scaffold for spider_vtbasmr"
+name = "spider-vtbasmr"
+# Semantic Versioning (SemVer): increment MAJOR.MINOR.PATCH for releases.
+version = "0.2.0"
+description = "PySide6 desktop workflow for VTB ASMR crawling and resource processing"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13,<3.14"
 dependencies = [
   "playwright>=1.53.0",
+  "PySide6>=6.8.0",
 ]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+]
+build = [
+  "pyinstaller>=6.22.0,<7",
+]
+
+[project.scripts]
+spider-vtbasmr-gui = "spider_vtbasmr_gui.app:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
