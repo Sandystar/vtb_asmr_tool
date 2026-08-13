@@ -24,33 +24,30 @@ def write_json(path: Path, payload: object) -> None:
 def build_test_project(root: Path) -> ProjectPaths:
     paths = ProjectPaths.from_root(root)
     write_json(
-        root / ".data/.config/base.json",
+        paths.spider_base_config_path,
         {
-            "browser": {"channel": "msedge"},
             "login_info": {
                 "url": "https://example.test/login",
                 "username": "user",
                 "password": "password",
-                "success_prefix": "https://example.test/",
-                "state_file_path": ".data/storage/login_state",
+                "storage_state": {"cookies": [], "origins": []},
             },
+            "resource_link_markers": ["https://pan.example/s"],
             "log_dir": ".data/logs",
-            "download_link_info": {},
         },
     )
-    write_json(root / ".data/.config/vtb.json", {})
-    write_json(root / ".data/.config/fnos.json", {})
+    write_json(paths.vtb_list_config_path, {})
     write_json(
-        paths.app_config_path,
+        paths.fnos_config_path,
         {
-            "spider_base_config_path": ".data/.config/base.json",
-            "spider_vtb_config_path": ".data/.config/vtb.json",
-            "baidu_netdisk_config_path": ".data/.config/fnos.json",
+            "base_url": "http://fnos.test",
             "trans_share_dir": "/transfer",
             "download_dir": "/nas",
-            "7z_path": None,
-            "decompress_password": None,
         },
+    )
+    write_json(
+        paths.seven_zip_config_path,
+        {"7z_path": None, "decompress_password": None},
     )
     return paths
 

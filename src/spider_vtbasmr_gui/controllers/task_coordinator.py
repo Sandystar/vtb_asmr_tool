@@ -32,8 +32,7 @@ class TaskCoordinator(QObject):
         self._busy = True
         self.busy_changed.emit(True, busy_message)
 
-        def handle_error(message: str, traceback_text: str) -> None:
-            print(traceback_text, flush=True)
+        def handle_error(message: str, _: str) -> None:
             on_error(message)
 
         def handle_finished() -> None:

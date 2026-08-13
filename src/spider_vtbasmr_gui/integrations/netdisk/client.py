@@ -187,8 +187,7 @@ class NetdiskClient:
         except (TypeError, ValueError) as error:
             raise NetdiskGatewayError(f"{action}失败: 响应缺少状态码") from error
         if code != 0:
-            message = payload.get("message") or payload.get("msg") or f"code={code}"
-            raise NetdiskGatewayError(f"{action}失败: {message}")
+            raise NetdiskGatewayError(f"{action}失败: code={code}")
         return payload
 
     @staticmethod

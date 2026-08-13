@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import io
 import json
 from typing import Any
+from urllib.error import HTTPError
 
 import pytest
 
+from spider_vtbasmr_gui.config.fnos_config import FnosCredential
 from spider_vtbasmr_gui.integrations.netdisk.client import NetdiskClient
-from spider_vtbasmr_gui.integrations.netdisk.gateway import NetdiskGatewayError
+from spider_vtbasmr_gui.integrations.netdisk.gateway import NetdiskGateway, NetdiskGatewayError
 
 
 class FakeGateway:
@@ -66,13 +69,41 @@ def test_download_by_paths_resolves_file_id_before_submitting() -> None:
         "fsIds": [42],
         "rtype": 1,
     }
-
-
 def test_nonzero_api_code_is_reported_without_network_retry() -> None:
     gateway = FakeGateway([{"errno": -1, "message": "denied"}])
     client = NetdiskClient(gateway)  # type: ignore[arg-type]
 
-    with pytest.raises(NetdiskGatewayError, match="denied"):
+    with pytest.raises(NetdiskGatewayError, match="code=-1"):
         client.create_folder("/target")
 
     assert len(gateway.requests) == 1
+
+
+def test_gateway_does_not_expose_http_response_body() -> None:
+    response_body = b"token=secret-cookie; password=secret-password"
+
+    class FailingOpener:
+        def __call__(self, *_: object, **__: object) -> object:
+            raise HTTPError(
+                url="http://fnos.test/api",
+                code=500,
+                msg="server error",
+                hdrs=None,
+                fp=io.BytesIO(response_body),
+            )
+
+    gateway = NetdiskGateway(
+        FnosCredential(
+            base_url="http://fnos.test",
+            cookie="fnos-token=opaque-token",
+            device_id="device-id",
+        ),
+        opener=FailingOpener(),
+    )
+
+    with pytest.raises(NetdiskGatewayError) as error:
+        gateway.request_json("GET", "/api")
+
+    assert "500" in str(error.value)
+    assert "secret-cookie" not in str(error.value)
+    assert "secret-password" not in str(error.value)

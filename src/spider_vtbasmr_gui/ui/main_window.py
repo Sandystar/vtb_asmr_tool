@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QStackedWidget,
-    QStatusBar,
     QVBoxLayout,
     QWidget,
 )
@@ -22,6 +21,13 @@ from spider_vtbasmr_gui.ui.pages import (
 
 
 class MainWindow(QMainWindow):
+    _PAGE_META = (
+        ("登陆抓取", "选择目标和策略，启动一次可追踪的后台抓取任务。"),
+        ("资源转存", "从抓取日志提取分享资源，并提交到 NAS 下载。"),
+        ("资源解压", "扫描本地归档，预览并按内容整理输出。"),
+        ("数据配置", ""),
+    )
+
     def __init__(self) -> None:
         super().__init__()
         self._navigation_buttons: list[QPushButton] = []
@@ -54,70 +60,120 @@ class MainWindow(QMainWindow):
         self._crawl_page.set_busy(busy)
         self._resource_transfer_page.set_busy(busy)
         self._resource_decompression_page.set_busy(busy)
-        self.statusBar().showMessage(message)
 
     def switch_page(self, page_index: int) -> None:
+        if not 0 <= page_index < self._pages.count():
+            return
         self._pages.setCurrentIndex(page_index)
+        self._navigation_buttons[page_index].setChecked(True)
+        self._update_page_header(page_index)
 
     def _build(self) -> None:
-        self.setWindowTitle("VTB ASMR 工具")
+        self.setWindowTitle("VTB ASMR · 工作台")
         self.setMinimumSize(1080, 720)
         self.resize(1280, 860)
 
         root = QWidget()
         root.setObjectName("appRoot")
         self.setCentralWidget(root)
-        layout = QVBoxLayout(root)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(14)
+        root_layout = QHBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        title = QLabel("VTB ASMR 工具")
-        title.setObjectName("appTitle")
-        subtitle = QLabel("登录、抓取、网盘转存与本地解压，运行数据统一保存在工程内 .data。")
-        subtitle.setObjectName("appSubtitle")
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        root_layout.addWidget(self._build_sidebar())
+        root_layout.addWidget(self._build_workspace(), 1)
+        self.switch_page(0)
 
-        navigation = QWidget()
-        navigation.setObjectName("transparentPanel")
-        navigation_layout = QHBoxLayout(navigation)
-        navigation_layout.setContentsMargins(0, 2, 0, 2)
-        navigation_layout.setSpacing(8)
+    def _build_sidebar(self) -> QWidget:
+        sidebar = QWidget()
+        sidebar.setObjectName("sidebarRail")
+        sidebar.setFixedWidth(228)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(20, 24, 16, 18)
+        sidebar_layout.setSpacing(0)
+
+        brand = QWidget()
+        brand.setObjectName("sidebarBrand")
+        brand_layout = QVBoxLayout(brand)
+        brand_layout.setContentsMargins(0, 0, 0, 0)
+        brand_layout.setSpacing(4)
+        name = QLabel("VTB ASMR")
+        name.setObjectName("brandName")
+        descriptor = QLabel("COLLECTOR WORKSPACE")
+        descriptor.setObjectName("brandDescriptor")
+        brand_layout.addWidget(name)
+        brand_layout.addWidget(descriptor)
+        sidebar_layout.addWidget(brand)
+        sidebar_layout.addSpacing(38)
+
         button_group = QButtonGroup(self)
         button_group.setExclusive(True)
-        for index, text in enumerate(("基本配置", "登录与抓取", "资源转存", "资源解压")):
-            button = QPushButton(text)
+        for index, (title, _) in enumerate(self._PAGE_META):
+            button = QPushButton(title)
             button.setObjectName("navigationButton")
             button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.clicked.connect(lambda checked=False, page=index: self.switch_page(page))
             button_group.addButton(button)
-            navigation_layout.addWidget(button)
+            sidebar_layout.addWidget(button)
             self._navigation_buttons.append(button)
-        navigation_layout.addStretch(1)
-        self._navigation_buttons[0].setChecked(True)
-        layout.addWidget(navigation)
+            if index != len(self._PAGE_META) - 1:
+                sidebar_layout.addSpacing(4)
 
-        container = QWidget()
-        container.setObjectName("pageContainer")
-        container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(18, 18, 18, 18)
+        sidebar_layout.addStretch(1)
+        return sidebar
+
+    def _build_workspace(self) -> QWidget:
+        workspace = QWidget()
+        workspace.setObjectName("workspace")
+        workspace_layout = QVBoxLayout(workspace)
+        workspace_layout.setContentsMargins(42, 30, 42, 26)
+        workspace_layout.setSpacing(24)
+
+        header = QWidget()
+        header.setObjectName("mainHeader")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(18)
+
+        header_copy = QWidget()
+        copy_layout = QVBoxLayout(header_copy)
+        copy_layout.setContentsMargins(0, 0, 0, 0)
+        copy_layout.setSpacing(5)
+        self._page_title = QLabel()
+        self._page_title.setObjectName("pageTitle")
+        self._page_description = QLabel()
+        self._page_description.setObjectName("pageDescription")
+        self._page_description.setWordWrap(True)
+        copy_layout.addWidget(self._page_title)
+        copy_layout.addWidget(self._page_description)
+        header_layout.addWidget(header_copy, 1)
+        workspace_layout.addWidget(header)
+
+        page_surface = QWidget()
+        page_surface.setObjectName("pageSurface")
+        page_layout = QVBoxLayout(page_surface)
+        page_layout.setContentsMargins(0, 0, 0, 0)
         self._pages = QStackedWidget()
-        container_layout.addWidget(self._pages)
-        layout.addWidget(container, 1)
+        self._pages.setObjectName("pageStack")
+        page_layout.addWidget(self._pages)
+        workspace_layout.addWidget(page_surface, 1)
 
-        self._basic_config_page = BasicConfigPage()
         self._crawl_page = CrawlPage()
         self._resource_transfer_page = ResourceTransferPage()
         self._resource_decompression_page = ResourceDecompressionPage()
+        self._basic_config_page = BasicConfigPage()
         for page in (
-            self._basic_config_page,
             self._crawl_page,
             self._resource_transfer_page,
             self._resource_decompression_page,
+            self._basic_config_page,
         ):
             self._pages.addWidget(page)
+        return workspace
 
-        status_bar = QStatusBar()
-        status_bar.showMessage("正在加载本地配置…")
-        self.setStatusBar(status_bar)
+    def _update_page_header(self, page_index: int) -> None:
+        title, description = self._PAGE_META[page_index]
+        self._page_title.setText(title)
+        self._page_description.setText(description)
+        self._page_description.setVisible(bool(description))

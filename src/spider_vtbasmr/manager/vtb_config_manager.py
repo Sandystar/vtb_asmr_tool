@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-DEFAULT_VTB_CONFIG_PATH = Path(".config/vtb.json")
+DEFAULT_VTB_CONFIG_PATH = Path("config/vtb_list.json")
 
 
 @dataclass(slots=True)

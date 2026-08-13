@@ -12,6 +12,7 @@ from spider_vtbasmr.manager.log_manager import LogManager, LogRecord
 from spider_vtbasmr.manager.save_manager import SaveManager
 from spider_vtbasmr.manager.vtb_config_manager import VtbConfigManager
 from spider_vtbasmr.scraper.detail_page_scraper import DetailPageResult, DetailPageScraper
+from spider_vtbasmr.scraper.page_access import AuthenticationRequiredError
 from spider_vtbasmr.scraper.tag_page_scraper import CoverItem, TagPageResult, TagPageScraper
 
 
@@ -104,7 +105,7 @@ class VtbCrawler:
         vtb_config = self._vtb_config_manager.get_vtb_config(tag_name)
         archive_manager = ArchiveManager(vtb_config.archive_file_path)
         save_manager = SaveManager(vtb_config.save_dir_path)
-        login_state_path = self._config_manager.get_login_state_file_path()
+        login_state = self._config_manager.get_storage_state()
         log_manager = LogManager(
             log_file_name=log_file_name,
             config_manager=self._config_manager,
@@ -114,11 +115,11 @@ class VtbCrawler:
             tag_name=vtb_config.name,
             message=(
                 f"prepare crawl_mode={crawl_mode.value} page_order={page_order.value} "
-                f"first_page={vtb_config.url} login_state={login_state_path}"
+                f"first_page={vtb_config.url}"
             ),
         )
         browser_session = self._browser_client.open_logged_in_browser_session(
-            storage_state_path=login_state_path,
+            storage_state=login_state or {},
             is_headless=is_headless,
         )
 
@@ -146,7 +147,7 @@ class VtbCrawler:
                 tag_name=vtb_config.name,
                 message=(
                     f"start crawl_mode={crawl_mode.value} page_order={page_order.value} "
-                    f"page_count={len(page_urls)} login_state={login_state_path}"
+                    f"page_count={len(page_urls)}"
                 ),
             )
 
@@ -332,6 +333,8 @@ class VtbCrawler:
                     is_headless=is_headless,
                     timeout_milliseconds=timeout_milliseconds,
                 )
+            except AuthenticationRequiredError:
+                raise
             except Exception as error:
                 failed_tag_names.append(tag_name)
                 self._print_batch_progress(message=f"failed tag={tag_name} error={error}")

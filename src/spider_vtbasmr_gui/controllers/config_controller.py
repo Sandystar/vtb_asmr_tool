@@ -39,7 +39,7 @@ class ConfigController(QObject):
             self._page.show_status(f"保存配置失败：{error}", "error")
             return
         self._page.set_config(saved_config)
-        self._apply(saved_config, f"配置已保存到 {self._config_manager.config_path}，并立即应用。")
+        self._apply(saved_config, "配置已保存并立即应用。")
 
     def _apply(self, config: AppConfig, success_message: str) -> AppConfig:
         try:

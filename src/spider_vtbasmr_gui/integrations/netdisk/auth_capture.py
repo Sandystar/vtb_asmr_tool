@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from pathlib import Path
 from time import monotonic
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from spider_vtbasmr.browser.playwright_browser_client import PlaywrightBrowserClient
-from spider_vtbasmr.browser.profile_snapshot import create_browser_profile_snapshot
-from spider_vtbasmr_gui.integrations.netdisk.credential import FnosCredential, FnosCredentialStore
+from spider_vtbasmr_gui.config.fnos_config import FnosCredential, FnosCredentialStore
 
 
 @dataclass(slots=True)
 class _CapturedAuth:
     cookie_header: str = ""
     token: str = ""
-    user_agent: str = ""
     device_id: str = ""
     appid: str = ""
     authorized: bool = False
@@ -36,31 +33,10 @@ class FnosAuthCaptureService:
         if not credential.base_url:
             raise ValueError("FNOS 配置缺少 base_url")
 
-        browser_channel = self._browser_channel(credential.browser_type)
-        browser_client = self._browser_factory(browser_channel=browser_channel)
-        user_data_dir = (
-            self._browser_user_data_dir(credential, browser_channel)
-            if credential.use_existing_browser_profile
-            else None
+        browser_client = self._browser_factory()
+        session = browser_client.open_browser_session(
+            is_headless=is_headless,
         )
-        profile_snapshot = (
-            create_browser_profile_snapshot(
-                user_data_dir,
-                credential.browser_profile_directory,
-            )
-            if user_data_dir is not None
-            else None
-        )
-        try:
-            session = browser_client.open_browser_session(
-                is_headless=is_headless,
-                user_data_dir=(profile_snapshot.user_data_dir if profile_snapshot else None),
-                profile_directory=credential.browser_profile_directory,
-            )
-        except Exception:
-            if profile_snapshot is not None:
-                profile_snapshot.cleanup()
-            raise
         page = session.page
         base_url = self._origin(credential.base_url)
         captured = _CapturedAuth(
@@ -89,9 +65,6 @@ class FnosAuthCaptureService:
                     "fnos-token",
                     token,
                 )
-            if headers.get("user-agent"):
-                captured.user_agent = headers["user-agent"]
-
             query = parse_qs(urlparse(request.url).query)
             if query.get("device_id", [""])[0]:
                 captured.device_id = query["device_id"][0].strip()
@@ -156,8 +129,6 @@ class FnosAuthCaptureService:
                     "fnos-token",
                     captured.token,
                 )
-            if not captured.user_agent:
-                captured.user_agent = str(page.evaluate("() => navigator.userAgent") or "")
             if not captured.device_id:
                 user_info = self._request_json(
                     page,
@@ -177,7 +148,6 @@ class FnosAuthCaptureService:
                 credential,
                 base_url=base_url,
                 cookie=captured.cookie_header,
-                user_agent=captured.user_agent,
                 language=language,
                 appid=captured.appid or credential.appid,
                 device_id=captured.device_id,
@@ -189,11 +159,7 @@ class FnosAuthCaptureService:
                 page.remove_listener("request", handle_request)
                 page.remove_listener("response", handle_response)
             finally:
-                try:
-                    browser_client.close_browser_session(session)
-                finally:
-                    if profile_snapshot is not None:
-                        profile_snapshot.cleanup()
+                browser_client.close_browser_session(session)
 
     @classmethod
     def _ensure_fnos_login(
@@ -387,31 +353,6 @@ class FnosAuthCaptureService:
     def _origin(url: str) -> str:
         parsed = urlparse(url)
         return f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
-
-    @staticmethod
-    def _browser_user_data_dir(
-        credential: FnosCredential,
-        browser_channel: str | None,
-    ) -> Path | None:
-        if credential.browser_user_data_dir:
-            return Path(credential.browser_user_data_dir).expanduser().resolve(strict=False)
-        default_directories = {
-            "msedge": Path.home() / "AppData/Local/Microsoft/Edge/User Data",
-            "chrome": Path.home() / "AppData/Local/Google/Chrome/User Data",
-        }
-        user_data_dir = default_directories.get(browser_channel or "")
-        return user_data_dir if user_data_dir and user_data_dir.exists() else None
-
-    @staticmethod
-    def _browser_channel(browser_type: str) -> str | None:
-        normalized = browser_type.strip().lower()
-        if normalized in {"edge", "msedge"}:
-            return "msedge"
-        if normalized == "chrome":
-            return "chrome"
-        if normalized in {"chromium", "playwright", ""}:
-            return None
-        raise ValueError(f"不支持的 browser_type: {browser_type}")
 
     @staticmethod
     def _cookie_value(cookie_header: str, key: str) -> str | None:

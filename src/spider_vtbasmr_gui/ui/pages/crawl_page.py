@@ -64,7 +64,6 @@ class CrawlPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
-        layout.addWidget(SectionCard("登录与抓取", "登录状态、归档和结果都写入工程内 .data。"))
 
         columns = QWidget()
         columns.setObjectName("contentPanel")

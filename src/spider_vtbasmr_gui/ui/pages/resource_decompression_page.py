@@ -52,7 +52,6 @@ class ResourceDecompressionPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
-        layout.addWidget(SectionCard("资源解压", "扫描下载目录，并按 Tag / 年 / 月整理输出。"))
 
         columns = QWidget()
         columns.setObjectName("contentPanel")

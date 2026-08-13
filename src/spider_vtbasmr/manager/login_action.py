@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from spider_vtbasmr.manager.config_manager import ConfigManager
@@ -6,15 +8,11 @@ from spider_vtbasmr.manager.config_manager import ConfigManager
 class LoginAction:
     def __init__(
         self,
-        success_url_prefix: str | None = None,
         *,
         config_manager: ConfigManager | None = None,
     ) -> None:
         resolved_config_manager = config_manager or ConfigManager()
-        self._success_url_prefix = (
-            success_url_prefix
-            or resolved_config_manager.get_login_success_prefix()
-        )
+        self._success_site_origin = resolved_config_manager.get_site_origin()
 
     def perform_login(
         self,
@@ -53,8 +51,13 @@ class LoginAction:
             pass
 
         current_url = page.url
-        if not current_url.startswith(self._success_url_prefix):
-            raise RuntimeError(f"Login did not reach expected domain. Current URL: {current_url}")
+        current_origin = urlparse(current_url)
+        expected_origin = urlparse(self._success_site_origin)
+        if (current_origin.scheme, current_origin.netloc) != (
+            expected_origin.scheme,
+            expected_origin.netloc,
+        ):
+            raise RuntimeError("Login did not reach the configured website.")
 
         login_form_locator = page.locator("#loginform")
         if login_form_locator.count() > 0 and "/login" in current_url:

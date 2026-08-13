@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from spider_vtbasmr_gui.config import AppConfig
+from spider_vtbasmr_gui.config.seven_zip_config import SevenZipConfig
 from spider_vtbasmr_gui.services.archive_probe import SevenZipArchiveProbe
 from spider_vtbasmr_gui.services.decompression_service import DecompressionService
 
@@ -25,8 +26,10 @@ def build_service(
     seven_zip.touch()
     context = SimpleNamespace(
         app_config=AppConfig(
-            seven_zip_path=seven_zip,
-            decompression_password="default-password",
+            seven_zip_config=SevenZipConfig(
+                executable_path=seven_zip,
+                default_password="default-password",
+            )
         )
     )
     provider = SimpleNamespace(require=lambda: context)

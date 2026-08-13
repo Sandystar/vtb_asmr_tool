@@ -65,7 +65,6 @@ class ResourceTransferPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
-        layout.addWidget(SectionCard("资源转存", "从抓取日志解析分享链接，转存后提交到 NAS 下载。"))
 
         columns = QWidget()
         columns.setObjectName("contentPanel")

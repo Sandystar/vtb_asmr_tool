@@ -1,81 +1,116 @@
 from __future__ import annotations
 
-import json
 from dataclasses import replace
-from pathlib import Path
 
+from spider_vtbasmr.manager.base_config import BaseConfigStore, SpiderBaseConfig
 from spider_vtbasmr_gui.config.app_config import AppConfig
+from spider_vtbasmr_gui.config.fnos_config import FnosConfigStore
+from spider_vtbasmr_gui.config.seven_zip_config import SevenZipConfigStore
+from spider_vtbasmr_gui.config.vtb_list_config import VtbListConfigStore
 from spider_vtbasmr_gui.project_paths import ProjectPaths
 
 
 class AppConfigManager:
-    def __init__(
-        self,
-        config_path: Path | None = None,
-        *,
-        project_paths: ProjectPaths | None = None,
-    ) -> None:
+    def __init__(self, *, project_paths: ProjectPaths | None = None) -> None:
         self._project_paths = project_paths or ProjectPaths.discover()
-        self._config_path = config_path or self._project_paths.app_config_path
-
-    @property
-    def config_path(self) -> Path:
-        return self._config_path
 
     def load(self) -> AppConfig:
-        if not self._config_path.exists():
-            return AppConfig.empty()
-        payload = json.loads(self._config_path.read_text(encoding="utf-8-sig"))
-        if not isinstance(payload, dict):
-            raise ValueError(f"GUI 配置必须是 JSON object: {self._config_path}")
-        return self._resolve_paths(AppConfig.from_dict(payload))
+        paths = self._project_paths
+        return AppConfig(
+            spider_base_config=BaseConfigStore(
+                paths.spider_base_config_path,
+                project_root=paths.project_root,
+            ).load(),
+            vtb_list_config=VtbListConfigStore(
+                paths.vtb_list_config_path,
+                project_root=paths.project_root,
+            ).load(),
+            fnos_config=FnosConfigStore(paths.fnos_config_path).load(),
+            seven_zip_config=SevenZipConfigStore(
+                paths.seven_zip_config_path,
+                project_root=paths.project_root,
+            ).load(),
+        )
 
     def save(self, config: AppConfig) -> AppConfig:
-        resolved_config = self._normalize(config)
-        portable_config = replace(
-            resolved_config,
-            spider_base_config_path=self._portable_path(resolved_config.spider_base_config_path),
-            spider_vtb_config_path=self._portable_path(resolved_config.spider_vtb_config_path),
-            netdisk_config_path=self._portable_path(resolved_config.netdisk_config_path),
-            seven_zip_path=self._portable_path(resolved_config.seven_zip_path),
-        )
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(
-            json.dumps(portable_config.to_dict(), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        return resolved_config
+        paths = self._project_paths
+        updated = config
 
-    def _normalize(self, config: AppConfig) -> AppConfig:
-        return replace(
-            self._resolve_paths(config),
-            transfer_root_dir=self._text(config.transfer_root_dir),
-            nas_download_dir=self._text(config.nas_download_dir),
-            decompression_password=self._text(config.decompression_password),
-        )
+        if config.spider_base_config is not None:
+            updated = replace(
+                updated,
+                spider_base_config=self._save_spider_base_config(config.spider_base_config),
+            )
 
-    def _resolve_paths(self, config: AppConfig) -> AppConfig:
+        if config.vtb_list_config is not None:
+            updated = replace(
+                updated,
+                vtb_list_config=VtbListConfigStore(
+                    paths.vtb_list_config_path,
+                    project_root=paths.project_root,
+                ).save(config.vtb_list_config),
+            )
+
+        if config.fnos_config is not None:
+            submitted = config.fnos_config
+            updated = replace(
+                updated,
+                fnos_config=FnosConfigStore(paths.fnos_config_path).update_visible_fields(
+                    base_url=submitted.credential.base_url,
+                    username=submitted.credential.username,
+                    password=submitted.credential.password,
+                    transfer_root_dir=submitted.transfer_root_dir,
+                    nas_download_dir=submitted.nas_download_dir,
+                ),
+            )
+
+        if config.seven_zip_config is not None:
+            submitted = config.seven_zip_config
+            updated = replace(
+                updated,
+                seven_zip_config=SevenZipConfigStore(
+                    paths.seven_zip_config_path,
+                    project_root=paths.project_root,
+                ).update_visible_fields(
+                    executable_path=submitted.executable_path,
+                    default_password=submitted.default_password,
+                ),
+            )
+
+        return updated
+
+    def save_spider_base_config(self, config: AppConfig) -> AppConfig:
+        if config.spider_base_config is None:
+            return config
         return replace(
             config,
-            spider_base_config_path=self._resolved_path(config.spider_base_config_path),
-            spider_vtb_config_path=self._resolved_path(config.spider_vtb_config_path),
-            netdisk_config_path=self._resolved_path(config.netdisk_config_path),
-            seven_zip_path=self._resolved_path(config.seven_zip_path),
+            spider_base_config=self._save_spider_base_config(config.spider_base_config),
         )
 
-    def _resolved_path(self, path_value: Path | None) -> Path | None:
-        if path_value is None:
-            return None
-        return self._project_paths.resolve_project_path(path_value)
-
-    def _portable_path(self, path_value: Path | None) -> Path | None:
-        if path_value is None:
-            return None
-        return Path(self._project_paths.portable_project_path(path_value))
-
-    @staticmethod
-    def _text(value: str | None) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+    def _save_spider_base_config(self, submitted: SpiderBaseConfig) -> SpiderBaseConfig:
+        paths = self._project_paths
+        store = BaseConfigStore(
+            paths.spider_base_config_path,
+            project_root=paths.project_root,
+        )
+        current = store.load() if paths.spider_base_config_path.is_file() else None
+        persisted = replace(
+            submitted,
+            login_url=submitted.login_url.strip(),
+            username=submitted.username.strip(),
+            password=submitted.password.strip(),
+            resource_link_markers=tuple(
+                dict.fromkeys(
+                    marker.strip()
+                    for marker in submitted.resource_link_markers
+                    if marker.strip()
+                )
+            ),
+            log_dir=submitted.log_dir.strip(),
+            storage_state=(
+                current.storage_state
+                if current is not None and current.storage_state is not None
+                else submitted.storage_state
+            ),
+        )
+        return store.save(persisted)

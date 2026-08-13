@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 
 class SectionCard(QWidget):
-    def __init__(self, title: str, description: str | None = None, parent: QWidget | None = None) -> None:
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sectionCard")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -13,14 +13,23 @@ class SectionCard(QWidget):
         layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(12)
 
+        header = QWidget()
+        header.setObjectName("sectionHeader")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
+
         title_label = QLabel(title)
         title_label.setObjectName("sectionTitle")
-        layout.addWidget(title_label)
-        if description:
-            description_label = QLabel(description)
-            description_label.setObjectName("helperText")
-            description_label.setWordWrap(True)
-            layout.addWidget(description_label)
+        header_layout.addWidget(title_label)
+
+        rule = QFrame()
+        rule.setObjectName("sectionRule")
+        rule.setFrameShape(QFrame.Shape.HLine)
+        rule.setFrameShadow(QFrame.Shadow.Plain)
+        rule.setFixedWidth(title_label.sizeHint().width())
+        header_layout.addWidget(rule)
+        layout.addWidget(header)
 
         body = QWidget()
         body.setObjectName("transparentPanel")

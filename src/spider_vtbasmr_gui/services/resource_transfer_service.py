@@ -93,11 +93,11 @@ class ResourceTransferService:
         if not items:
             raise ValueError("没有可转存资源")
         context = self._context_provider.require()
-        config = context.app_config
-        if not config.has_transfer_settings():
+        fnos_config = context.app_config.fnos_config
+        if fnos_config is None or not fnos_config.has_transfer_settings():
             raise ValueError("请先配置网盘转存目录和 NAS 下载目录")
         timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
-        parent = self._netdisk_path(config.transfer_root_dir or "/")
+        parent = self._netdisk_path(fnos_config.transfer_root_dir or "/")
         batch_root = self._join_path(parent, timestamp)
         client = self._client_factory(context)
         transferred: list[str] = []
@@ -111,10 +111,10 @@ class ResourceTransferService:
             client.create_folder(target)
             client.transfer_share_all(item.link_url, target)
             transferred.append(target)
-        client.download_by_paths(config.nas_download_dir or "", [batch_root])
+        client.download_by_paths(fnos_config.nas_download_dir or "", [batch_root])
         return ResourceTransferResult(
             batch_root_path=batch_root,
-            download_target_path=config.nas_download_dir or "",
+            download_target_path=fnos_config.nas_download_dir or "",
             transferred_paths=transferred,
             summary_text=f"已转存 {len(transferred)} 条资源，并提交 NAS 下载：{batch_root}",
         )

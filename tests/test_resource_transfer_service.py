@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from spider_vtbasmr_gui.config import AppConfig
+from spider_vtbasmr_gui.config.fnos_config import FnosConfig
 from spider_vtbasmr_gui.services.resource_transfer_service import ResourceTransferService
 
 
@@ -53,8 +54,10 @@ def test_parse_and_transfer_resource_flow_uses_injected_client(tmp_path: Path) -
     )
     provider = StaticContextProvider(
         AppConfig(
-            transfer_root_dir="/vtbasmr",
-            nas_download_dir="/nas/download",
+            fnos_config=FnosConfig(
+                transfer_root_dir="/vtbasmr",
+                nas_download_dir="/nas/download",
+            )
         )
     )
     client = RecordingNetdiskClient()

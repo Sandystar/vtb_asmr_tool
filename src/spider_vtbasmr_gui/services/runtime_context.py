@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from spider_vtbasmr.manager.config_manager import ConfigManager
 from spider_vtbasmr.manager.vtb_config_manager import VtbConfigManager
@@ -37,9 +36,18 @@ class RuntimeContextProvider:
         self._context = None
         self._error = None
         try:
-            base_path = self._required_file(config.spider_base_config_path, "抓取基础配置")
-            vtb_path = self._required_file(config.spider_vtb_config_path, "VTB 配置")
-            netdisk_path = self._required_file(config.netdisk_config_path, "FNOS 配置")
+            base_path = self._required_file(
+                self._project_paths.spider_base_config_path,
+                "抓取基础配置",
+            )
+            vtb_path = self._required_file(
+                self._project_paths.vtb_list_config_path,
+                "VTB 配置",
+            )
+            netdisk_path = self._required_file(
+                self._project_paths.fnos_config_path,
+                "FNOS 配置",
+            )
             context = RuntimeContext(
                 app_config=config,
                 project_paths=self._project_paths,
@@ -60,9 +68,7 @@ class RuntimeContextProvider:
         return self._context
 
     @staticmethod
-    def _required_file(path_value: Path | None, label: str) -> Path:
-        if path_value is None:
-            raise ValueError(f"缺少{label}路径")
+    def _required_file(path_value, label: str):
         path = path_value.expanduser().resolve(strict=False)
         if not path.is_file():
             raise FileNotFoundError(f"{label}文件不存在: {path}")

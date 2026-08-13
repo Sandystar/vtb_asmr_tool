@@ -17,7 +17,6 @@ class VtbTagOption:
 
 @dataclass(frozen=True, slots=True)
 class LoginTaskResult:
-    state_path: str
     final_url: str
     summary_text: str
 
@@ -60,9 +59,8 @@ class SpiderTaskService:
             is_headless=False,
         )
         return LoginTaskResult(
-            state_path=result.state_path,
             final_url=result.final_url,
-            summary_text=f"登录完成，状态已保存到 {result.state_path}",
+            summary_text="登录完成，状态已更新。",
         )
 
     def run_crawl(

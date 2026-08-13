@@ -7,8 +7,10 @@ from pathlib import Path
 @dataclass(frozen=True, slots=True)
 class ProjectPaths:
     project_root: Path
-    data_dir: Path
-    app_config_path: Path
+    spider_base_config_path: Path
+    vtb_list_config_path: Path
+    fnos_config_path: Path
+    seven_zip_config_path: Path
 
     @classmethod
     def discover(cls, start_path: Path | None = None) -> "ProjectPaths":
@@ -22,11 +24,13 @@ class ProjectPaths:
     @classmethod
     def from_root(cls, project_root: Path) -> "ProjectPaths":
         resolved_root = project_root.expanduser().resolve(strict=False)
-        data_dir = resolved_root / ".data"
+        config_dir = resolved_root / "config"
         return cls(
             project_root=resolved_root,
-            data_dir=data_dir,
-            app_config_path=data_dir / "config" / "config.json",
+            spider_base_config_path=config_dir / "vtbasmr_base.json",
+            vtb_list_config_path=config_dir / "vtb_list.json",
+            fnos_config_path=config_dir / "fnos_baidu_netdisk.json",
+            seven_zip_config_path=config_dir / "7zip.json",
         )
 
     def resolve_project_path(self, path_value: str | Path) -> Path:

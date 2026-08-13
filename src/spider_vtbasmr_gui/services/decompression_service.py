@@ -73,8 +73,9 @@ class DecompressionService:
     ) -> DecompressionResult:
         files = self.discover(source_root, target_root)
         seven_zip = self._require_seven_zip_path()
+        seven_zip_config = self._context_provider.require().app_config.seven_zip_config
         resolved_password = (
-            password or self._context_provider.require().app_config.decompression_password or ""
+            password or (seven_zip_config.default_password if seven_zip_config else None) or ""
         ).strip() or None
         probe = self._probe_factory(seven_zip, resolved_password)
         for item in files:
@@ -97,12 +98,13 @@ class DecompressionService:
         )
 
     def _create_probe(self) -> ArchiveProbe:
-        config = self._context_provider.require().app_config
-        password = (config.decompression_password or "").strip() or None
+        config = self._context_provider.require().app_config.seven_zip_config
+        password = (config.default_password if config else None) or None
         return self._probe_factory(self._require_seven_zip_path(), password)
 
     def _require_seven_zip_path(self) -> Path:
-        seven_zip = self._context_provider.require().app_config.seven_zip_path
+        config = self._context_provider.require().app_config.seven_zip_config
+        seven_zip = config.executable_path if config else None
         if seven_zip is None or not seven_zip.is_file():
             raise FileNotFoundError(f"7z 可执行文件不存在: {seven_zip}")
         return seven_zip

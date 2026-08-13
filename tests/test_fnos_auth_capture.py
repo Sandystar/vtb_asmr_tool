@@ -9,6 +9,7 @@ from spider_vtbasmr_gui.integrations.netdisk.auth_capture import (
     FnosAuthCaptureService,
     _CapturedAuth,
 )
+from spider_vtbasmr_gui.config.fnos_config import FnosConfig, FnosConfigStore
 from spider_vtbasmr_gui.integrations.netdisk.credential import FnosCredential, FnosCredentialStore
 
 
@@ -120,8 +121,7 @@ class FakeBrowserClient:
     authorization_code = 0
     last_instance: "FakeBrowserClient | None" = None
 
-    def __init__(self, browser_channel: str | None = None) -> None:
-        self.browser_channel = browser_channel
+    def __init__(self) -> None:
         self.page = FakePage(
             emit_auth_request=self.emit_auth_request,
             authorization_code=self.authorization_code,
@@ -134,12 +134,8 @@ class FakeBrowserClient:
         self,
         *,
         is_headless: bool,
-        user_data_dir=None,
-        profile_directory: str = "Default",
     ) -> SimpleNamespace:
         assert is_headless is True
-        self.user_data_dir = user_data_dir
-        self.profile_directory = profile_directory
         return SimpleNamespace(page=self.page, context=self.context)
 
     def close_browser_session(self, _: object) -> None:
@@ -147,21 +143,20 @@ class FakeBrowserClient:
 
 
 def build_store(tmp_path) -> FnosCredentialStore:
-    user_data_dir = tmp_path / "edge-user-data"
-    (user_data_dir / "Profile 1").mkdir(parents=True)
-    store = FnosCredentialStore(tmp_path / "fnos.json")
-    store.save(
-        FnosCredential(
-            base_url="http://fnos.test/",
-            username="user",
-            password="password",
-            browser_type="edge",
-            browser_user_data_dir=str(user_data_dir),
-            browser_profile_directory="Profile 1",
-            device_id=None,
+    config_path = tmp_path / "fnos.json"
+    FnosConfigStore(config_path).save(
+        FnosConfig(
+            credential=FnosCredential(
+                base_url="http://fnos.test/",
+                username="user",
+                password="password",
+                device_id=None,
+            ),
+            transfer_root_dir="/transfer",
+            nas_download_dir="/nas/download",
         )
     )
-    return store
+    return FnosCredentialStore(config_path)
 
 
 def test_capture_uses_authorization_header_when_token_cookie_is_absent(tmp_path) -> None:
@@ -173,15 +168,13 @@ def test_capture_uses_authorization_header_when_token_cookie_is_absent(tmp_path)
     captured = service.capture(timeout_milliseconds=100)
 
     assert captured.cookie == "language=zh-CN; fnos-token=test-token"
-    assert captured.user_agent == "test-browser"
     assert captured.device_id == "device-1"
     assert captured.appid == "app-1"
     assert store.load() == captured
+    persisted_config = FnosConfigStore(store.config_path).load()
+    assert persisted_config.transfer_root_dir == "/transfer"
+    assert persisted_config.nas_download_dir == "/nas/download"
     assert FakeBrowserClient.last_instance is not None
-    assert FakeBrowserClient.last_instance.browser_channel == "msedge"
-    assert FakeBrowserClient.last_instance.user_data_dir.name == "User Data"
-    assert FakeBrowserClient.last_instance.user_data_dir.exists() is False
-    assert FakeBrowserClient.last_instance.profile_directory == "Profile 1"
     assert FakeBrowserClient.last_instance.closed is True
     assert FakeBrowserClient.last_instance.page.goto_urls == [
         "http://fnos.test/login",

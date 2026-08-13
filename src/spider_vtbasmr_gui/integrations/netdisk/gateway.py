@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable
 
-from spider_vtbasmr_gui.integrations.netdisk.credential import FnosCredential
+from spider_vtbasmr_gui.config.fnos_config import FnosCredential
 
 
 class NetdiskGatewayError(RuntimeError):
@@ -15,6 +15,11 @@ class NetdiskGatewayError(RuntimeError):
 
 
 class NetdiskGateway:
+    _DEFAULT_USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+
     def __init__(
         self,
         credential: FnosCredential,
@@ -79,12 +84,10 @@ class NetdiskGateway:
             with self._opener(request, context=context, timeout=self._timeout_seconds) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
-            response_text = error.read().decode("utf-8", errors="replace")
-            raise NetdiskGatewayError(
-                f"FNOS 请求失败: status={error.code}, response={response_text}"
-            ) from error
+            error.close()
+            raise NetdiskGatewayError(f"FNOS 请求失败: status={error.code}") from error
         except (urllib.error.URLError, TimeoutError) as error:
-            raise NetdiskGatewayError(f"FNOS 请求失败: {error}") from error
+            raise NetdiskGatewayError("FNOS 请求失败: 网络连接异常") from error
         except json.JSONDecodeError as error:
             raise NetdiskGatewayError("FNOS 返回了无效 JSON") from error
 
@@ -99,9 +102,8 @@ class NetdiskGateway:
             "Accept": "application/json, text/plain, */*",
             "Authorization": f"trim {token}",
             "Cookie": cookie if ";" in cookie or "fnos-token=" in cookie else f"fnos-token={cookie}",
+            "User-Agent": self._DEFAULT_USER_AGENT,
         }
-        if self._credential.user_agent:
-            headers["User-Agent"] = self._credential.user_agent
         return headers
 
     @staticmethod
