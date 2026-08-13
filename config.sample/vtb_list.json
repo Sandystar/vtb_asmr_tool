@@ -1,0 +1,8 @@
+{
+  "示例VTB": {
+    "name": "示例VTB",
+    "url": "https://example.com/tag/example",
+    "archive_file_path": ".data/archive/example.txt",
+    "save_dir_path": ".data/save/example"
+  }
+}

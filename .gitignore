@@ -32,6 +32,7 @@ MANIFEST
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
+.build-temp/
 *.manifest
 *.spec
 
@@ -204,8 +205,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Local project config and secrets
+# Local project config, secrets, and bundled third-party binaries
 .config/
+/config/
+/thirdtool/
 
 # Marimo
 marimo/_static/

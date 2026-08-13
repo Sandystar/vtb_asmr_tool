@@ -92,6 +92,20 @@ def test_project_paths_expose_only_four_fixed_config_files(tmp_path: Path) -> No
     }
 
 
+def test_project_paths_use_executable_directory_when_frozen(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable_path = tmp_path / "release/vtb_asmr_tool_gui_v1.2.3.exe"
+    monkeypatch.setattr("spider_vtbasmr_gui.project_paths.sys.frozen", True, raising=False)
+    monkeypatch.setattr("spider_vtbasmr_gui.project_paths.sys.executable", str(executable_path))
+
+    paths = ProjectPaths.discover()
+
+    assert paths.project_root == executable_path.parent
+    assert paths.spider_base_config_path == executable_path.parent / "config/vtbasmr_base.json"
+
+
 def test_app_config_manager_loads_four_fixed_configs(tmp_path: Path) -> None:
     paths = ProjectPaths.from_root(tmp_path)
     write_fixed_configs(paths)

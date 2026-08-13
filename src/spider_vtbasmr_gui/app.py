@@ -8,6 +8,7 @@ from typing import Sequence
 
 from PySide6.QtWidgets import QApplication
 
+from spider_vtbasmr.browser.playwright_browser_client import PlaywrightBrowserClient
 from spider_vtbasmr_gui.config import AppConfigManager
 from spider_vtbasmr_gui.controllers import ApplicationController
 from spider_vtbasmr_gui.project_paths import ProjectPaths
@@ -46,7 +47,21 @@ def create_application_runtime(
     return ApplicationRuntime(application, window, controller)
 
 
+def check_runtime_dependencies() -> int:
+    client = PlaywrightBrowserClient()
+    session = client.open_browser_session(is_headless=True)
+    try:
+        executable_path = Path(session.playwright.chromium.executable_path)
+        if not executable_path.is_file():
+            raise RuntimeError("Bundled Playwright Chromium is missing")
+    finally:
+        client.close_browser_session(session)
+    return 0
+
+
 def main() -> int:
+    if "--check-runtime" in sys.argv[1:]:
+        return check_runtime_dependencies()
     runtime = create_application_runtime(sys.argv)
     runtime.window.show()
     return runtime.application.exec()

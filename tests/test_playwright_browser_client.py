@@ -1,4 +1,6 @@
 from types import SimpleNamespace
+from pathlib import Path
+import os
 
 import pytest
 from playwright.sync_api import Error as PlaywrightError
@@ -34,6 +36,25 @@ def test_create_controlled_page_closes_browser_startup_pages() -> None:
     assert controlled_page is context.created_page
     assert controlled_page.closed is False
     assert all(page.closed for page in startup_pages)
+
+
+def test_frozen_browser_path_uses_bundled_playwright(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    browser_root = tmp_path / "ms-playwright"
+    browser_root.mkdir()
+    monkeypatch.setattr("spider_vtbasmr.browser.playwright_browser_client.sys.frozen", True, raising=False)
+    monkeypatch.setattr(
+        "spider_vtbasmr.browser.playwright_browser_client.sys._MEIPASS",
+        str(tmp_path),
+        raising=False,
+    )
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+
+    PlaywrightBrowserClient._configure_frozen_browser_path()
+
+    assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == str(browser_root)
 
 
 def test_save_storage_state_reports_closed_login_window() -> None:

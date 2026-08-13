@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from pathlib import Path
+import sys
 from typing import Any
 
 from playwright.sync_api import Browser, BrowserContext, Error as PlaywrightError, Page, Playwright, sync_playwright
@@ -22,6 +25,7 @@ class PlaywrightBrowserClient:
         self._config_manager = config_manager
 
     def open_browser_session(self, *, is_headless: bool = False) -> BrowserSession:
+        self._configure_frozen_browser_path()
         playwright_driver = sync_playwright()
         playwright = playwright_driver.start()
 
@@ -101,3 +105,12 @@ class PlaywrightBrowserClient:
                 "Unable to launch Playwright Chromium. "
                 "Run `python -m playwright install chromium` before starting the application."
             ) from error
+
+    @staticmethod
+    def _configure_frozen_browser_path() -> None:
+        if not getattr(sys, "frozen", False):
+            return
+        bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        browser_root = bundle_root / "ms-playwright"
+        if browser_root.is_dir():
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(browser_root)

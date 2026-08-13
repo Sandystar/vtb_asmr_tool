@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +15,8 @@ class ProjectPaths:
 
     @classmethod
     def discover(cls, start_path: Path | None = None) -> "ProjectPaths":
+        if start_path is None and getattr(sys, "frozen", False):
+            return cls.from_root(Path(sys.executable).resolve(strict=False).parent)
         start = (start_path or Path(__file__)).resolve(strict=False)
         candidates = [start] if start.is_dir() else list(start.parents)
         for candidate in candidates:

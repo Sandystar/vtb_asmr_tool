@@ -1,0 +1,15 @@
+{
+  "login_info": {
+    "url": "https://vtbasmr.cc/login?redirect_to=https://vtbasmr.cc/",
+    "username": "",
+    "password": "",
+    "storage_state": {
+      "cookies": [],
+      "origins": []
+    }
+  },
+  "resource_link_markers": [
+    "https://pan.baidu.com/s/"
+  ],
+  "log_dir": ".data/logs"
+}
